@@ -18,8 +18,13 @@ Small prototype to show RoboHive usage with TorchRL.
     ```
 2. Look under the newly created `videos/` for videos of the explored envs. The script explores a few envs by default. 
 
-## Example 
-<video width="320" height="240" controls>
-  <source src="https://github.com/AlexandreBrown/RoboHiveTorchRL-Prototype/blob/main/videos/FrankaPushRandom-v0/videos/iteration_0.mp4" type="video/mp4">
-    Your browser does not support the video tag.
+## Examples  
+<video controls>
+  <source src="videos/FrankaPushRandom-v0/videos/iteration_0.mp4" type="video/mp4">
+</video>
+<video controls>
+  <source src="videos/FK1_LdoorOpenRandom-v4/videos/iteration_0.mp4" type="video/mp4">
+</video>
+<video controls>
+  <source src="videos/DKittyStandRandom-v0/videos/iteration_0.mp4" type="video/mp4">
 </video>

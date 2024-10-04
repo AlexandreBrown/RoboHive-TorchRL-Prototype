@@ -10,11 +10,12 @@ from torchrl.envs import EnvBase
 
 
 class VisualDomainRandomizedEnv(EnvBase):
-    def __init__(self, env):
+    def __init__(self, env, cameras: list = ["top_cam"]):
         super().__init__(
             device=env.device, batch_size=env.batch_size, allow_done_after_reset=False
         )
         self._base_env = env
+        self.cameras = cameras
         self.observation_spec = env.observation_spec.clone()
         self.action_spec = env.action_spec.clone()
 
@@ -27,7 +28,7 @@ class VisualDomainRandomizedEnv(EnvBase):
 
         return tensordict
 
-    def randomize_visual(self):
+    def apply_visual_domain_randomization(self) -> torch.Tensor:
 
         # Randomize geometry color
         self._base_env.sim.model.geom_rgba[:] = np.random.rand(
@@ -76,22 +77,30 @@ class VisualDomainRandomizedEnv(EnvBase):
         # Randomize cam pos
         # self._base_env.sim.model.cam_pos[:] += np.random.normal(0, 0.1, size=self._base_env.sim.model.cam_pos.shape)
 
-        self._base_env.sim.forward()
+        _, _, _, _, info = self._base_env.unwrapped.forward(update_exteroception=True)
 
-    def get_sim_observation(self) -> torch.Tensor:
-        torch.from_numpy(
-            self._base_env.env.unwrapped.sim.renderer._sim.render()
-            .transpose(2, 0, 1)
-            .copy()
-        )
+        return self.get_cameras_pixels(info)
+
+    def get_cameras_pixels(self, info: dict) -> torch.Tensor:
+        cameras_pixels = []
+
+        for camera_key in info["visual_dict"].keys():
+            for camera_name in self.cameras:
+                if (
+                    camera_key.startswith("rgb:")
+                    and camera_name in camera_key
+                    and camera_key.endswith("2d")
+                ):
+                    cameras_pixels.append(info["visual_dict"][camera_key])
+
+        return torch.from_numpy(np.array(cameras_pixels))
 
     def _reset(self, tensordict):
         tensordict = self._base_env._reset(tensordict)
 
-        self.randomize_visual()
+        pixels = self.apply_visual_domain_randomization()
 
-        obs = self.get_sim_observation()
-        tensordict.set("observation", obs)
+        tensordict.set("pixels", pixels)
 
         return tensordict
 
@@ -110,15 +119,20 @@ if __name__ == "__main__":
     )
     recorder = VideoRecorder(logger=video_logger, tag="iteration", skip=2)
 
+    env_name = "FetchReachRandom-v0"
+    cameras = ["left_cam", "right_cam", "top_cam", "head_camera_rgb"]
+
     env = TransformedEnv(
         VisualDomainRandomizedEnv(
             RoboHiveEnv(
-                env_name="FetchReachRandom-v0",
+                env_name=env_name,
                 from_pixels=True,
                 pixels_only=True,
                 from_depths=False,
                 frame_skip=None,
-            )
+                cameras=cameras,
+            ),
+            cameras=cameras,
         )
     )
     env.append_transform(recorder)
